@@ -62,8 +62,8 @@ struct LicenseDescription {
 #[derive(Debug, Serialize)]
 enum LicenseError {
     NoSource,
-    LicenseNotDeclared,
-    UnableToRecoverLicenseFile,
+    LicenseNotDeclared(PathBuf),
+    UnableToRecoverLicenseFile(PathBuf),
     UnableToRecoverAttribution(String),
     UnacceptableLicense(String),
 }
@@ -140,7 +140,7 @@ impl<'a> LicenseHound<'a> {
             }
         }
 
-        Err(LicenseError::UnableToRecoverLicenseFile)
+        Err(LicenseError::UnableToRecoverLicenseFile(package.manifest_path().with_file_name("").to_owned()))
     }
 
     fn chase(&self, package: &lockfile::Package) -> Result<LicenseDescription, LicenseError> {
@@ -154,7 +154,7 @@ impl<'a> LicenseHound<'a> {
         let package = source.download(&package_id).unwrap();
         let metadata = package.manifest().metadata();
 
-        let spdx_license = metadata.license.as_ref().ok_or(LicenseError::LicenseNotDeclared)?;
+        let spdx_license = metadata.license.as_ref().ok_or(LicenseError::LicenseNotDeclared(package.manifest_path().to_owned()))?;
 
         // YOLO! This will give legally wrong results for descriptors such as "MIT AND GPL3",
         // which I have never seen in the wild. The more robust solution here is to implement
