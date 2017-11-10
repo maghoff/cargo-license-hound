@@ -1,6 +1,7 @@
 [package]
 name = "cargo-license-hound"
 description = "Tool to help sniffing out licenses from all crate dependencies"
+license = "MIT"
 version = "0.1.0"
 authors = ["Magnus Hoff <maghoff@gmail.com>"]
 
