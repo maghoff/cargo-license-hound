@@ -1,10 +1,17 @@
+#[macro_use] extern crate lazy_static;
 #[macro_use] extern crate serde_derive;
+#[macro_use] extern crate try_opt;
+extern crate base64;
 extern crate cargo;
 extern crate itertools;
+extern crate regex;
+extern crate reqwest;
 extern crate serde;
 extern crate serde_json;
 extern crate toml;
 
+mod github;
+mod license;
 mod lockfile;
 
 use std::path::PathBuf;
@@ -13,41 +20,7 @@ use cargo::core::{Source, SourceId, PackageId};
 use cargo::util::Config;
 use cargo::sources::SourceConfigMap;
 
-#[derive(Debug, Copy, Clone, Serialize)]
-enum LicenseId {
-    Bsd3Clause,
-    Mit,
-    Mpl2,
-}
-
-impl LicenseId {
-    fn suffixes(&self) -> &'static [&'static str] {
-        use LicenseId::*;
-        match self {
-            &Mit => &[ "-MIT" ],
-            &Bsd3Clause => &[ ],
-            &Mpl2 => &[ ],
-        }
-    }
-
-    fn id(&self) -> &'static str {
-        use LicenseId::*;
-        match self {
-            &Mit => "Mit",
-            &Bsd3Clause => "Bsd3Clause",
-            &Mpl2 => "Mpl2",
-        }
-    }
-}
-
-#[derive(Debug, Serialize)]
-enum LicenseSource {
-    Crate(String),
-    GitHubApi {
-        repository: String,
-        path: PathBuf,
-    }
-}
+use license::*;
 
 #[derive(Debug, Serialize)]
 struct LicenseDescription {
@@ -123,7 +96,7 @@ impl<'a> LicenseHound<'a> {
         LicenseHound { source_config_map }
     }
 
-    fn hound_license_file(&self, package: &cargo::core::Package, chosen_license: LicenseId) -> Result<(LicenseSource, String), LicenseError> {
+    fn license_file_from_package(&self, package: &cargo::core::Package, chosen_license: LicenseId) -> Option<(LicenseSource, String)> {
         let manifest_path = package.manifest_path();
 
         let candidate_base_names = [
@@ -135,12 +108,18 @@ impl<'a> LicenseHound<'a> {
             for base_name in &candidate_base_names {
                 let candidate_name = format!("{}{}", base_name, suffix);
                 if let Ok(license_text) = read_file(manifest_path.with_file_name(&candidate_name)) {
-                    return Ok((LicenseSource::Crate(candidate_name), license_text));
+                    return Some((LicenseSource::Crate(candidate_name), license_text));
                 }
             }
         }
 
-        Err(LicenseError::UnableToRecoverLicenseFile(package.manifest_path().with_file_name("").to_owned()))
+        None
+    }
+
+    fn hound_license_file(&self, package: &cargo::core::Package, chosen_license: LicenseId) -> Result<(LicenseSource, String), LicenseError> {
+        self.license_file_from_package(package, chosen_license)
+            .or_else(|| github::license_file_from_github_api(package, chosen_license))
+            .ok_or_else(|| LicenseError::UnableToRecoverLicenseFile(package.manifest_path().with_file_name("").to_owned()))
     }
 
     fn chase(&self, package: &lockfile::Package) -> Result<LicenseDescription, LicenseError> {
