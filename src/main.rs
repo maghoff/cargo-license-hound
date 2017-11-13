@@ -1,13 +1,13 @@
+#[macro_use] extern crate itertools;
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate serde_derive;
 #[macro_use] extern crate try_opt;
 extern crate base64;
 extern crate cargo;
-extern crate itertools;
 extern crate regex;
 extern crate reqwest;
-extern crate serde;
 extern crate serde_json;
+extern crate serde;
 extern crate toml;
 
 mod github;
@@ -99,17 +99,11 @@ impl<'a> LicenseHound<'a> {
     fn license_file_from_package(&self, package: &cargo::core::Package, chosen_license: LicenseId) -> Option<(LicenseSource, String)> {
         let manifest_path = package.manifest_path();
 
-        let candidate_base_names = [
-            "LICENSE",
-            "LICENCE", // Typo seen in the wild
-        ];
+        for (a, b, c) in chosen_license.guess_filenames() {
+            let candidate_name = format!("{}{}{}", a, b, c);
 
-        for suffix in chosen_license.suffixes().into_iter().chain(&[""]) {
-            for base_name in &candidate_base_names {
-                let candidate_name = format!("{}{}", base_name, suffix);
-                if let Ok(license_text) = read_file(manifest_path.with_file_name(&candidate_name)) {
-                    return Some((LicenseSource::Crate(candidate_name), license_text));
-                }
+            if let Ok(license_text) = read_file(manifest_path.with_file_name(&candidate_name)) {
+                return Some((LicenseSource::Crate(candidate_name), license_text));
             }
         }
 

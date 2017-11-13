@@ -152,8 +152,8 @@ fn get_license_file(url: &str) -> Option<String> {
 }
 
 fn license_file_from_github_repo(owner: &str, repo: &str, _package_name: &str, chosen_license: LicenseId) -> Option<(LicenseSource, String)> {
-    for suffix in chosen_license.suffixes() {
-        let url = format!("https://raw.githubusercontent.com/{}/{}/master/LICENSE{}", owner, repo, suffix);
+    for (a, b, c) in chosen_license.guess_filenames() {
+        let url = format!("https://raw.githubusercontent.com/{}/{}/master/{}{}{}", owner, repo, a, b, c);
         if let Some(license) = get_license_file(&url) {
             return Some((
                 LicenseSource::GitHubRepo { url },
