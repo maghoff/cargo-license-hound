@@ -85,12 +85,7 @@ fn try_to_print_error(resp: reqwest::Response) {
     }
 }
 
-fn license_file_from_github_api_core(repo_url: Option<&str>, package_name: &str, chosen_license: LicenseId) -> Option<(LicenseSource, String)> {
-    let repo_url = try_opt!(repo_url);
-    let re_captures = try_opt!(URL_SCHEMA.captures(repo_url));
-
-    let owner = &re_captures[1];
-    let repo = &re_captures[2];
+fn license_file_from_license_api(owner: &str, repo: &str, package_name: &str, chosen_license: LicenseId) -> Option<(LicenseSource, String)> {
     let license_url = format!("https://api.github.com/repos/{}/{}/license", owner, repo);
 
     let resp = try_opt!(get(&license_url).send().ok());
@@ -134,8 +129,55 @@ fn license_file_from_github_api_core(repo_url: Option<&str>, package_name: &str,
     ))
 }
 
-pub fn license_file_from_github_api(package: &cargo::core::Package, chosen_license: LicenseId) -> Option<(LicenseSource, String)> {
-    license_file_from_github_api_core(
+fn get_license_file(url: &str) -> Option<String> {
+    let mut resp = try_opt!(get(&url).send().ok());
+
+    if resp.status() == reqwest::StatusCode::Forbidden {
+        eprintln!("ERROR Request to {} forbidden by GitHub", url);
+        try_to_print_error(resp);
+        eprintln!("HINT Try authenticating with your GitHub user:");
+        eprintln!("HINT     {}=... {}=... cargo license-hound", LICENSE_HOUND_GITHUB_USERNAME, LICENSE_HOUND_GITHUB_PASSWORD);
+        return None;
+    }
+
+    if resp.status().is_success() {
+        use std::io::prelude::*;
+        let mut contents = String::new();
+        try_opt!(resp.read_to_string(&mut contents).ok());
+
+        return Some(contents);
+    }
+
+    None
+}
+
+fn license_file_from_github_repo(owner: &str, repo: &str, _package_name: &str, chosen_license: LicenseId) -> Option<(LicenseSource, String)> {
+    for suffix in chosen_license.suffixes() {
+        let url = format!("https://raw.githubusercontent.com/{}/{}/master/LICENSE{}", owner, repo, suffix);
+        if let Some(license) = get_license_file(&url) {
+            return Some((
+                LicenseSource::GitHubRepo { url },
+                license,
+            ));
+        }
+    }
+
+    None
+}
+
+fn license_file_from_github_core(repo_url: Option<&str>, package_name: &str, chosen_license: LicenseId) -> Option<(LicenseSource, String)> {
+    let repo_url = try_opt!(repo_url);
+    let re_captures = try_opt!(URL_SCHEMA.captures(repo_url));
+
+    let owner = &re_captures[1];
+    let repo = &re_captures[2];
+
+    license_file_from_license_api(owner, repo, package_name, chosen_license)
+        .or_else(|| license_file_from_github_repo(owner, repo, package_name, chosen_license))
+}
+
+pub fn license_file_from_github(package: &cargo::core::Package, chosen_license: LicenseId) -> Option<(LicenseSource, String)> {
+    license_file_from_github_core(
         package.manifest().metadata().repository.as_ref().map(|x| &**x),
         package.name(),
         chosen_license,
@@ -195,9 +237,25 @@ mod test {
     #[test]
     #[ignore] // Integration test, talks with github over the Internet (Use `cargo test --ignored`)
     fn test_with_live_api() {
-        let report = license_file_from_github_api_core(
-            Some("https://github.com/maghoff/cargo-license-hound"),
+        let report = license_file_from_license_api(
+            "maghoff",
             "cargo-license-hound",
+            "cargo-license-hound",
+            LicenseId::Mit,
+        );
+
+        println!("{:#?}", report);
+
+        assert!(report.is_some());
+    }
+
+    #[test]
+    #[ignore] // Integration test, talks with github over the Internet (Use `cargo test --ignored`)
+    fn test_with_live_repo() {
+        let report = license_file_from_github_repo(
+            "alexcrichton",
+            "futures-rs",
+            "futures-cpupool",
             LicenseId::Mit,
         );
 

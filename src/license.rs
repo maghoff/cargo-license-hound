@@ -28,7 +28,6 @@ impl LicenseId {
 #[derive(Debug, Serialize)]
 pub enum LicenseSource {
     Crate(String),
-    GitHubApi {
-        url: String,
-    }
+    GitHubApi { url: String },
+    GitHubRepo { url: String },
 }

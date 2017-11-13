@@ -118,7 +118,7 @@ impl<'a> LicenseHound<'a> {
 
     fn hound_license_file(&self, package: &cargo::core::Package, chosen_license: LicenseId) -> Result<(LicenseSource, String), LicenseError> {
         self.license_file_from_package(package, chosen_license)
-            .or_else(|| github::license_file_from_github_api(package, chosen_license))
+            .or_else(|| github::license_file_from_github(package, chosen_license))
             .ok_or_else(|| LicenseError::UnableToRecoverLicenseFile(package.manifest_path().with_file_name("").to_owned()))
     }
 
