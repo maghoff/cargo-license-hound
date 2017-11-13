@@ -9,7 +9,7 @@ use serde_json;
 use license::*;
 
 lazy_static! {
-    static ref URL_SCHEMA: Regex = Regex::new("^https://github.com/([^/]+)/([^/]+)$").unwrap();
+    static ref URL_SCHEMA: Regex = Regex::new("^https://github.com/([^/]+)/([^/.]+)(.git)?$").unwrap();
     static ref HTTP_CLIENT: reqwest::Client = reqwest::Client::new();
 }
 
