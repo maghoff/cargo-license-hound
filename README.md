@@ -9,7 +9,8 @@ for the full terms of use and limitation of liability clause.
 What does it do?
 ================
 license-hound attempts to locate the LICENSE files of all crate dependencies
-of a rust project. It tries the following:
+of a rust project so you can successfully comply with the conditions. It
+tries the following:
 
  1. Look in the downloaded crate for filenames that could be correct
  2. If not found, and the source repository is on GitHub, ask the
