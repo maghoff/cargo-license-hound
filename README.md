@@ -20,10 +20,11 @@ tries the following:
     requests to GitHub
 
 The filenames license-hound looks for are variants seen in the wild, including
-typos.
+typos. (LICENSE, COPYING, LICENSE.txt, and so on)
 
 license-hound will attempt to find license files for the MIT, BSD-3-Clause and
-MPL-2.0 licenses, in that order.
+MPL-2.0 licenses, in that order. Other licenses are not accepted by
+license-hound, because it was not necessary for its initial use case.
 
 license-hound was written specifically to find the license files for the
 dependencies of [Sausagewiki](https://github.com/maghoff/sausagewiki) and may
@@ -39,6 +40,10 @@ and then, from your project directory:
 
 It prints out a compact JSON report of its findings. It is best to store this
 to a file for further processing.
+
+The report is a list of JSON objects, one for each dependency. Each entry
+includes some metadata as well as a `"conclusion"`, which details the license
+findings.
 
 ----
 
