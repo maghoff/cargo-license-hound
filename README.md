@@ -2,7 +2,8 @@ license-hound is a tool to help sniffing out licenses from all crate
 dependencies.
 
 While this tool attempts to help you with fulfilling legal obligations, it
-should not be relied upon to do so successfully. See
+should not be relied upon to do so successfully and no author or contributor
+can be held accountable for the results of its use. See
 [LICENSE](https://github.com/maghoff/cargo-license-hound/blob/master/LICENSE)
 for the full terms of use and limitation of liability clause.
 
