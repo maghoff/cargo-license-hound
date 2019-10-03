@@ -47,6 +47,14 @@ The report is a list of JSON objects, one for each dependency. Each entry
 includes some metadata as well as a `"conclusion"`, which details the license
 findings.
 
+
+Building
+================
+
+You need the following dependencies:
+* OpenSSL 1.0.1/1.0.2/1.1.0 or LibreSSL 2.5/2.6.0
+* CMake
+
 ----
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
