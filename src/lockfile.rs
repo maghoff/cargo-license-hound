@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::io;
 use std::path::Path;
 
@@ -32,7 +31,6 @@ pub struct Package {
 #[derive(Debug, Deserialize)]
 pub struct LockFile {
     pub package: Vec<Package>,
-    pub metadata: HashMap<String, String>,
 }
 
 impl LockFile {

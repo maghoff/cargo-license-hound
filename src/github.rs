@@ -25,7 +25,7 @@ impl Encoding {
     fn decode(&self, input: &str) -> Result<String, ()> {
         match self {
             &Encoding::Base64 =>
-                base64::decode_config(input, base64::MIME).map_err(|_| ())
+                base64::decode_config(input, base64::STANDARD).map_err(|_| ())
                     .and_then(|x| String::from_utf8(x).map_err(|_| ())),
         }
     }
@@ -65,21 +65,23 @@ impl fmt::Display for GitHubError {
 const LICENSE_HOUND_GITHUB_USERNAME: &str = "LICENSE_HOUND_GITHUB_USERNAME";
 const LICENSE_HOUND_GITHUB_PASSWORD: &str = "LICENSE_HOUND_GITHUB_PASSWORD";
 
-fn get(url: &str) -> reqwest::RequestBuilder {
+fn get(url: &str) -> reqwest::blocking::RequestBuilder {
     use std::env::var;
 
-    let mut builder = HTTP_CLIENT.get(url);
 
-    builder.header(reqwest::header::UserAgent::new(USER_AGENT));
+    let client = reqwest::blocking::Client::builder()
+        .user_agent(USER_AGENT)
+        .build().unwrap();
+    let mut builder = client.get(url);
 
     if let (Ok(username), password) = (var(LICENSE_HOUND_GITHUB_USERNAME), var(LICENSE_HOUND_GITHUB_PASSWORD).ok()) {
-        builder.basic_auth(username, password);
+        builder = builder.basic_auth(username, password);
     }
 
     builder
 }
 
-fn try_to_print_error(resp: reqwest::Response) {
+fn try_to_print_error(resp: reqwest::blocking::Response) {
     if let Ok(err) = serde_json::from_reader::<_, GitHubError>(resp) {
         eprintln!("ERROR github: {}", err);
     }
@@ -88,9 +90,9 @@ fn try_to_print_error(resp: reqwest::Response) {
 fn license_file_from_license_api(owner: &str, repo: &str, package_name: &str, chosen_license: LicenseId) -> Option<(LicenseSource, String)> {
     let license_url = format!("https://api.github.com/repos/{}/{}/license", owner, repo);
 
-    let resp = try_opt!(get(&license_url).send().ok());
+    let resp = get(&license_url).send().ok()?;
 
-    if resp.status() == reqwest::StatusCode::Forbidden {
+    if resp.status() == reqwest::StatusCode::FORBIDDEN {
         eprintln!("ERROR Request to {} forbidden by GitHub", license_url);
         try_to_print_error(resp);
         eprintln!("HINT Try authenticating with your GitHub user:");
@@ -98,7 +100,7 @@ fn license_file_from_license_api(owner: &str, repo: &str, package_name: &str, ch
         return None;
     }
 
-    if resp.status() == reqwest::StatusCode::NotFound {
+    if resp.status() == reqwest::StatusCode::NOT_FOUND {
         return None;
     }
 
@@ -108,7 +110,7 @@ fn license_file_from_license_api(owner: &str, repo: &str, package_name: &str, ch
         return None;
     }
 
-    let license_description: LicenseDocument = try_opt!(serde_json::from_reader(resp).ok());
+    let license_description: LicenseDocument = serde_json::from_reader(resp).ok()?;
 
     if chosen_license.spdx_id() != license_description.license.spdx_id {
         eprintln!(
@@ -125,14 +127,14 @@ fn license_file_from_license_api(owner: &str, repo: &str, package_name: &str, ch
         LicenseSource::GitHubApi {
             url: license_description.download_url,
         },
-        try_opt!(license_description.encoding.decode(&license_description.content).ok()),
+        license_description.encoding.decode(&license_description.content).ok()?,
     ))
 }
 
 fn get_license_file(url: &str) -> Option<String> {
-    let mut resp = try_opt!(get(&url).send().ok());
+    let mut resp = get(&url).send().ok()?;
 
-    if resp.status() == reqwest::StatusCode::Forbidden {
+    if resp.status() == reqwest::StatusCode::FORBIDDEN {
         eprintln!("ERROR Request to {} forbidden by GitHub", url);
         try_to_print_error(resp);
         eprintln!("HINT Try authenticating with your GitHub user:");
@@ -143,7 +145,7 @@ fn get_license_file(url: &str) -> Option<String> {
     if resp.status().is_success() {
         use std::io::prelude::*;
         let mut contents = String::new();
-        try_opt!(resp.read_to_string(&mut contents).ok());
+        resp.read_to_string(&mut contents).ok()?;
 
         return Some(contents);
     }
@@ -166,8 +168,8 @@ fn license_file_from_github_repo(owner: &str, repo: &str, _package_name: &str, c
 }
 
 fn license_file_from_github_core(repo_url: Option<&str>, package_name: &str, chosen_license: LicenseId) -> Option<(LicenseSource, String)> {
-    let repo_url = try_opt!(repo_url);
-    let re_captures = try_opt!(URL_SCHEMA.captures(repo_url));
+    let repo_url = repo_url?;
+    let re_captures = URL_SCHEMA.captures(repo_url)?;
 
     let owner = &re_captures[1];
     let repo = &re_captures[2];
@@ -179,7 +181,7 @@ fn license_file_from_github_core(repo_url: Option<&str>, package_name: &str, cho
 pub fn license_file_from_github(package: &cargo::core::Package, chosen_license: LicenseId) -> Option<(LicenseSource, String)> {
     license_file_from_github_core(
         package.manifest().metadata().repository.as_ref().map(|x| &**x),
-        package.name(),
+        &package.name(),
         chosen_license,
     )
 }

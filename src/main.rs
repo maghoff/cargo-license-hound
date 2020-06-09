@@ -1,7 +1,6 @@
 #[macro_use] extern crate itertools;
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate serde_derive;
-#[macro_use] extern crate try_opt;
 extern crate base64;
 extern crate cargo;
 extern crate regex;
@@ -15,8 +14,10 @@ mod license;
 mod lockfile;
 
 use std::path::PathBuf;
+use std::collections::HashSet;
 
 use cargo::core::{Source, SourceId, PackageId};
+use cargo::core::source::MaybePackage;
 use cargo::util::Config;
 use cargo::sources::SourceConfigMap;
 
@@ -50,6 +51,7 @@ struct LicenseReport {
 
 struct LicenseHound<'a> {
     source_config_map: SourceConfigMap<'a>,
+    yanked_whitelist: HashSet<PackageId>,
 }
 
 fn read_file<P: AsRef<std::path::Path>>(path: P) -> Result<String, std::io::Error> {
@@ -92,8 +94,9 @@ fn recover_copyright_notice(license_text: &str) -> Result<String, LicenseError> 
 impl<'a> LicenseHound<'a> {
     fn new(config: &'a Config) -> LicenseHound<'a> {
         let source_config_map = SourceConfigMap::new(&config).unwrap();
+        let yanked_whitelist = HashSet::new();
 
-        LicenseHound { source_config_map }
+        LicenseHound { source_config_map, yanked_whitelist }
     }
 
     fn license_file_from_package(&self, package: &cargo::core::Package, chosen_license: LicenseId) -> Option<(LicenseSource, String)> {
@@ -120,11 +123,14 @@ impl<'a> LicenseHound<'a> {
         let source = package.source.as_ref().ok_or(LicenseError::NoSource)?;
 
         let source_id = SourceId::from_url(&source).unwrap();
-        let mut source = self.source_config_map.load(&source_id).unwrap();
+        let mut source = self.source_config_map.load(source_id, &self.yanked_whitelist).unwrap();
         source.update().unwrap();
 
-        let package_id = PackageId::new(&package.name, &package.version, &source_id).unwrap();
-        let package = source.download(&package_id).unwrap();
+        let package_id = PackageId::new(&package.name, &package.version, source_id).unwrap();
+        let package = match source.download(package_id).unwrap() {
+            MaybePackage::Ready(package) => package,
+            MaybePackage::Download { .. } => unreachable!(),
+        };
         let metadata = package.manifest().metadata();
 
         let spdx_license = metadata.license.as_ref().ok_or(LicenseError::LicenseNotDeclared(package.manifest_path().to_owned()))?;
@@ -164,6 +170,7 @@ impl<'a> LicenseHound<'a> {
 
 fn main() {
     let config = Config::default().unwrap();
+    let _lock = config.acquire_package_cache_lock().unwrap();
     let license_hound = LicenseHound::new(&config);
 
     let packages = lockfile::LockFile::from_file("Cargo.lock").unwrap().package;
