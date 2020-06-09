@@ -5,7 +5,9 @@ use itertools;
 const LICENSE_BASE_NAMES: &[&str] = &[
     "LICENSE",
     "COPYING",
+    "LICENSE.md",
     "LICENCE", // Typo seen in the wild
+    "LICENCE.md",
 ];
 
 const LICENSE_EXTENSIONS: &[&str] = &[
