@@ -20,6 +20,8 @@ pub enum LicenseId {
     Bsd3Clause,
     Mit,
     Mpl2,
+    Apache20,
+    Zlib,
 }
 
 impl LicenseId {
@@ -29,6 +31,8 @@ impl LicenseId {
             &Mit => &[ "-MIT" ],
             &Bsd3Clause => &[ ],
             &Mpl2 => &[ ],
+            &Apache20 => &[ ],
+            &Zlib => &[ ],
         }
     }
 
@@ -57,6 +61,8 @@ impl LicenseId {
             &Mit => "MIT",
             &Bsd3Clause => "BSD-3-Clause",
             &Mpl2 => "MPL-2.0",
+            &Apache20 => "Apache-2.0",
+            &Zlib => "Zlib",
         }
     }
 }

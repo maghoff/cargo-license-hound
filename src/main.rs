@@ -145,6 +145,10 @@ impl<'a> LicenseHound<'a> {
                 Ok(LicenseId::Mpl2)
             } else if spdx_license.find("BSD-3-Clause").is_some() {
                 Ok(LicenseId::Bsd3Clause)
+            } else if spdx_license.find("Apache-2.0").is_some() {
+                Ok(LicenseId::Apache20)
+            } else if spdx_license.find("Zlib").is_some() {
+                Ok(LicenseId::Zlib)
             } else {
                 Err(LicenseError::UnacceptableLicense(spdx_license.clone()))
             }?;
