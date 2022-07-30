@@ -11,6 +11,7 @@ const LICENSE_BASE_NAMES: &[&str] = &[
 const LICENSE_EXTENSIONS: &[&str] = &[
     "",
     ".txt",
+    ".md"
 ];
 
 #[derive(Debug, Copy, Clone, Serialize)]
